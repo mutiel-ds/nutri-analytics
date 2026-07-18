@@ -1,0 +1,59 @@
+# ============================================
+# Secretos y configuración local
+# ============================================
+.env
+.env.*
+!.env.example
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# ============================================
+# Streamlit
+# ============================================
+# secrets.toml puede contener credenciales (SUPABASE_URL/KEY)
+.streamlit/secrets.toml
+
+# ============================================
+# Datos de salud personales (exportaciones)
+# ============================================
+# Cualquier CSV/Excel generado (métricas, menús, deporte...)
+*.csv
+*.xlsx
+
+# Carpeta de exportaciones para contexto de IA (md, csv, zip...)
+exports/
+data/
+
+# Markdown exportado con datos personales: se ignoran todos los .md
+# y se re-incluyen explícitamente los documentos del proyecto
+*.md
+!README.md
+!CLAUDE.md
+!docs/**/*.md
+
+# ============================================
+# IDEs y sistema operativo
+# ============================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
