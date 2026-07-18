@@ -19,17 +19,23 @@ nutri-analytics es una aplicación web progresiva diseñada para gestionar de fo
 ```
 nutri-analytics/
 ├── README.md                    # Este archivo
-├── docs/
-│   └── plan_app_personal.md    # Especificación de diseño y arquitectura
+├── LICENSE                      # Licencia del proyecto
+├── pyproject.toml               # Configuración de proyecto y dependencias (uv)
+├── uv.lock                      # Archivo de bloqueo de dependencias
+├── .env.example                 # Plantilla de variables de entorno
 ├── .env                         # Configuración (no commiteado)
-├── .venv/                       # Entorno virtual Python
+├── .venv/                       # Entorno virtual Python (generado por uv)
+├── docs/
+│   ├── plan_app_personal.md    # Especificación de diseño y arquitectura
+│   └── decisiones.md            # Registro de decisiones de diseño
+├── db/
+│   └── 001_esquema_inicial.sql # Migración SQL del esquema de Supabase
 ├── app.py                       # Interfaz Streamlit (planificado)
 ├── database.py                  # Operaciones CRUD con Supabase (planificado)
-├── exporter.py                  # Exportadores de contexto Markdown/CSV (planificado)
-└── requirements.txt             # Dependencias Python
+└── exporter.py                  # Exportadores de contexto Markdown/CSV (planificado)
 ```
 
-Ver [docs/plan_app_personal.md](docs/plan_app_personal.md) para la especificación completa de arquitectura, modelo de datos (tablas SQL) y hoja de ruta de desarrollo.
+Ver [docs/plan_app_personal.md](docs/plan_app_personal.md) para la especificación completa de arquitectura, modelo de datos (tablas SQL) y hoja de ruta de desarrollo. Consulta también [docs/decisiones.md](docs/decisiones.md) para el registro de decisiones de diseño.
 
 ## Puesta en Marcha
 
@@ -39,43 +45,40 @@ git clone <repo-url>
 cd nutri-analytics
 ```
 
-### 2. Crear y activar entorno virtual
-```bash
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
+### 2. Instalar uv (si no lo tienes)
+Instala el gestor de dependencias `uv` desde [https://docs.astral.sh/uv/](https://docs.astral.sh/uv/).
 
-# Linux/macOS
-python -m venv .venv
-source .venv/bin/activate
+### 3. Sincronizar dependencias
+```bash
+uv sync
 ```
 
-### 3. Instalar dependencias
-```bash
-pip install -r requirements.txt
-```
-
-Las dependencias incluyen: `streamlit`, `supabase`, `pandas`, `plotly`, `python-dotenv`.
+Esto crea el entorno virtual y instala todas las dependencias definidas en `pyproject.toml`.
 
 ### 4. Configurar variables de entorno
-Crear un archivo `.env` en la raíz del proyecto con las credenciales de Supabase:
+Copia `.env.example` a `.env` en la raíz del proyecto y rellena las credenciales de Supabase:
 
+```bash
+cp .env.example .env
+```
+
+Edita `.env` con tus valores:
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anonymous-key
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_KEY=tu-service-role-key
 ```
 
 **Importante:** No commitearlo. El archivo `.env` está en `.gitignore`.
 
 ### 5. Ejecutar la aplicación
 ```bash
-streamlit run app.py
+uv run streamlit run app.py
 ```
 
 La app estará disponible en `http://localhost:8501`.
 
 #### Instalar como PWA en Android
-1. Ejecutar Streamlit en tu red: `streamlit run app.py --server.address 0.0.0.0`
+1. Ejecutar Streamlit en tu red: `uv run streamlit run app.py --server.address 0.0.0.0`
 2. Acceder desde Chrome en Android: `http://[tu-ip-local]:8501`
 3. Menú de Chrome → "Instalar aplicación" para añadirla a la pantalla de inicio como app nativa.
 
