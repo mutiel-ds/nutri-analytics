@@ -65,7 +65,7 @@ cp .env.example .env
 Edita `.env` con tus valores:
 ```env
 SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_KEY=tu-service-role-key
+SUPABASE_SECRET_KEY=sb_secret_...
 ```
 
 **Importante:** No commitearlo. El archivo `.env` está en `.gitignore`.
