@@ -30,9 +30,12 @@ nutri-analytics/
 │   └── decisiones.md            # Registro de decisiones de diseño
 ├── db/
 │   └── 001_esquema_inicial.sql # Migración SQL del esquema de Supabase
-├── app.py                       # Interfaz Streamlit (planificado)
-├── database.py                  # Operaciones CRUD con Supabase (planificado)
-└── exporter.py                  # Exportadores de contexto Markdown/CSV (planificado)
+├── tests/                       # Tests unitarios y de integración (pytest)
+├── paginas/                     # Páginas de la UI (módulos Streamlit)
+├── app.py                       # Interfaz Streamlit
+├── database.py                  # Operaciones CRUD con Supabase
+├── exporter.py                  # Exportadores de contexto Markdown/CSV
+└── filtros.py                   # Sistema de filtros de recetas (lógica pura)
 ```
 
 Ver [docs/plan_app_personal.md](docs/plan_app_personal.md) para la especificación completa de arquitectura, modelo de datos (tablas SQL) y hoja de ruta de desarrollo. Consulta también [docs/decisiones.md](docs/decisiones.md) para el registro de decisiones de diseño.
@@ -76,6 +79,22 @@ uv run streamlit run app.py
 ```
 
 La app estará disponible en `http://localhost:8501`.
+
+## Tests
+
+### Tests unitarios
+```bash
+uv run pytest
+```
+
+Ejecuta todos los tests unitarios (sin tocar base de datos ni red). Cubre la lógica pura de los módulos raíz (`filtros.py`, `exporter.py`, helpers de `paginas/comun.py`...).
+
+### Tests de integración
+```bash
+uv run pytest -m integration
+```
+
+Ejecuta solo los tests de integración contra Supabase (requieren `.env` configurado con credenciales válidas). Utilizan datos con prefijo `[TEST]` y limpian automáticamente todo lo que crean.
 
 #### Instalar como PWA en Android
 1. Ejecutar Streamlit en tu red: `uv run streamlit run app.py --server.address 0.0.0.0`

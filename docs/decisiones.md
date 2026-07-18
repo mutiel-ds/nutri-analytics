@@ -50,3 +50,21 @@ Consecuencias:
 
 - Se añade un **Paso 0**: estructura de carpetas, `requirements.txt` y `.env.example`.
 - La navegación multipágina de la UI usará `st.navigation` / `st.Page` (API moderna de Streamlit) en lugar de `st.tabs`.
+
+## D9 — Diseño "agent-ready": lógica de negocio independiente de la UI
+
+Toda la lógica de negocio (acceso a datos en `database.py`, exportación en `exporter.py`, filtrado de recetas en `filtros.py`) se implementa como funciones Python puras, tipadas, sin ninguna dependencia de Streamlit y con validaciones que lanzan errores claros en español. La UI de Streamlit es solo una capa fina que llama a esas funciones.
+
+Motivo: permitir que en el futuro un agente de IA ejecute estas mismas operaciones (crear recetas, planificar menús, filtrar, exportar) como *tools* — vía API de LLM o como servidor MCP (*Model Context Protocol*) — sin reescribir nada. Los filtros de recetas, por ejemplo, se representan como datos (`{"campo": "calorias", "operador": "<", "valor": 1000}`): la UI los construye con widgets y un agente podría construirlos como JSON, consumiendo ambos la misma función `aplicar_filtros`.
+
+Regla para el futuro: cualquier funcionalidad nueva separa lógica (módulo puro en la raíz) de presentación (`paginas/`).
+
+## D10 — Política de tests
+
+Cada nueva funcionalidad incluye **tests unitarios** en el módulo `tests/` (pytest, `uv run pytest`), centrados en la lógica pura de los módulos raíz (`filtros.py`, `exporter.py`, helpers de `paginas/comun.py`...). Las operaciones contra Supabase se cubren con **tests de integración** marcados con `@pytest.mark.integration` (`uv run pytest -m integration`): usan datos con prefijo `[TEST]`, requieren un `.env` válido y limpian todo lo que crean. Los tests unitarios no tocan red ni base de datos.
+
+La lógica de `database.py` se cubre con tests unitarios que **simulan (mockean) el cliente de Supabase** con `unittest.mock`: verifican la construcción de payloads, los parámetros de las consultas (p. ej. `on_conflict`) y las validaciones locales, sin tocar la red y sin requerir `.env`. Los tests de integración quedan como suite complementaria opcional: detectan desviaciones reales de esquema o API que un mock no puede capturar.
+
+Motivo: hasta ahora la verificación se hacía con scripts temporales fuera del repositorio, que se perdían tras cada validación. Un módulo `tests/` versionado convierte esas comprobaciones en una red de seguridad permanente contra regresiones.
+
+A futuro: tests end-to-end de la app completa.
