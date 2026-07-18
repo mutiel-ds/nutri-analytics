@@ -47,7 +47,6 @@ data/
 # y se re-incluyen explícitamente los documentos del proyecto
 *.md
 !README.md
-!CLAUDE.md
 !docs/**/*.md
 
 # ============================================
