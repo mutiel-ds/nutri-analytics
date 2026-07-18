@@ -4,7 +4,9 @@ Registro de decisiones acordadas tras el análisis crítico del plan original ([
 
 ## D1 — Seguridad: RLS activado desde el inicio
 
-RLS (*Row Level Security*, seguridad a nivel de fila de PostgreSQL) se activa en las 5 tablas desde la primera migración, sin políticas para la clave anónima (lo que la deja inservible). La app usa la **service_role key**, que solo vive en el `.env` local o en el gestor de secretos del hosting, nunca en el repositorio.
+RLS (*Row Level Security*, seguridad a nivel de fila de PostgreSQL) se activa en las 5 tablas desde la primera migración, sin políticas para la clave anónima (lo que la deja inservible). La app usa la **Secret key** (`sb_secret_...`, sucesora de la legacy service_role), que ignora RLS y solo vive en el `.env` local o en el gestor de secretos del hosting, nunca en el repositorio.
+
+Nota: Supabase sustituyó en 2025 las claves legacy (anon / service_role) por Publishable key (`sb_publishable_...`, sujeta a RLS) y Secret key (`sb_secret_...`). Este proyecto usa exclusivamente la Secret key; las legacy quedan sin uso y pueden deshabilitarse.
 
 ## D2 — Menús: una sola columna de fecha
 

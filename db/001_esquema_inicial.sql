@@ -97,9 +97,9 @@ create table public.actividad_deporte (
 -- política. Esto deja a la clave anónima (anon key) sin ningún acceso de
 -- lectura ni escritura: cualquier consulta con esa clave será rechazada.
 --
--- La app se conecta con la service_role key (solo en .env local o en el
--- gestor de secretos del hosting, nunca en el repositorio), la cual
--- ignora RLS por completo y tiene acceso total a las tablas.
+-- La app se conecta con la Secret key (sb_secret_..., sucesora de la legacy service_role)
+-- (solo en .env local o en el gestor de secretos del hosting, nunca en el repositorio),
+-- la cual ignora RLS por completo y tiene acceso total a las tablas.
 -- =============================================================================
 alter table public.recetas enable row level security;
 alter table public.menus_semanales enable row level security;
