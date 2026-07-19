@@ -28,8 +28,13 @@ def render() -> None:
     try:
         recetas = comun.recetas_cacheadas()
     except Exception as error:
-        recetas = []
-        st.error(f"No se pudieron cargar las recetas: {error}")
+        st.error(
+            f"No se pudieron cargar las recetas: {error}. "
+            "Sin la lista de recetas no se puede editar el menú con seguridad "
+            "(podrías borrar comidas ya planificadas por error); vuelve a "
+            "intentarlo en unos segundos."
+        )
+        return
 
     if not recetas:
         st.info(
@@ -111,6 +116,15 @@ def _seccion_dia(
 
         comidas_por_tipo = {c["tipo_comida"]: c for c in comidas_dia}
         opciones_recetas = [None] + [r["id"] for r in recetas]
+        # Defensa adicional: aunque `recetas` esté completa o casi completa,
+        # nos aseguramos de que los receta_id ya asignados en este día estén
+        # siempre entre las opciones (aunque no estén en `recetas`), para que
+        # el selectbox nunca caiga por defecto en "— Sin receta —" y el diff
+        # de guardado no interprete una comida ya planificada como vaciada.
+        for comida_existente_dia in comidas_dia:
+            receta_id_existente = comida_existente_dia.get("receta_id")
+            if receta_id_existente is not None and receta_id_existente not in opciones_recetas:
+                opciones_recetas.append(receta_id_existente)
 
         def _formatear_receta(receta_id: str | None) -> str:
             if receta_id is None:

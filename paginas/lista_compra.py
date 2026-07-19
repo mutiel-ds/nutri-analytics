@@ -22,10 +22,12 @@ def render() -> None:
     """Renderiza la página Lista de la compra."""
     st.title("🛒 Lista de la compra")
 
+    hubo_error_carga = False
     try:
         items = comun.lista_compra_cacheada()
     except Exception as error:
         items = []
+        hubo_error_carga = True
         st.error(f"No se pudo cargar la lista de la compra: {error}")
 
     categorias_opciones = _categorias_opciones(items)
@@ -33,6 +35,9 @@ def render() -> None:
     _seccion_anadir_item(categorias_opciones)
 
     st.divider()
+
+    if hubo_error_carga:
+        return
 
     if not items:
         st.info(
@@ -72,7 +77,7 @@ def _categorias_opciones(items: list[dict]) -> list[str]:
 
 def _seccion_anadir_item(categorias_opciones: list[str]) -> None:
     with st.expander("➕ Añadir item"):
-        with st.form(key="lista_compra_form_nuevo", clear_on_submit=True):
+        with st.form(key="lista_compra_form_nuevo", clear_on_submit=False):
             item = st.text_input("Item *", key="lista_compra_nuevo_item")
             cantidad = st.text_input(
                 "Cantidad",
@@ -98,10 +103,21 @@ def _seccion_anadir_item(categorias_opciones: list[str]) -> None:
                 try:
                     database.agregar_item(item_limpio, cantidad.strip() or None, categoria)
                     comun.limpiar_cache()
+                    _limpiar_claves_formulario_nuevo_item()
                     st.success("Item añadido correctamente.")
                     st.rerun()
                 except Exception as error:
                     st.error(f"No se pudo añadir el item: {error}")
+
+
+def _limpiar_claves_formulario_nuevo_item() -> None:
+    """Elimina del session_state los valores de los widgets del formulario de alta de item."""
+    for clave in (
+        "lista_compra_nuevo_item",
+        "lista_compra_nuevo_cantidad",
+        "lista_compra_nuevo_categoria",
+    ):
+        st.session_state.pop(clave, None)
 
 
 def _listado(items: list[dict]) -> None:

@@ -14,6 +14,17 @@ Auditoría extensiva del repositorio con agentes revisores en paralelo (correcci
 
 **Revisión de calidad de la suite unitaria** (137 tests actuales): cobertura, tipificación y edge cases.
 
+### Deuda conocida (hallazgos de la auditoría diferidos a propósito)
+
+La auditoría multi-agente de la V1.1 confirmó 21 hallazgos; 17 se corrigieron y estos 4 se difieren con motivo:
+
+- **`registrar_metricas` no permite anular un valor ya guardado** (`database.py`): los `None` se omiten del payload (a propósito, para no machacar), pero eso impide "borrar" un campo. Arreglo futuro: sentinel explícito distinto de None. Workaround actual: eliminar el registro del día y re-registrar.
+- **Las confirmaciones de borrado quedan "armadas" en session_state sin expiración** (recetario, lista de la compra): riesgo bajo en app personal; arreglo futuro si molesta: timestamp de armado + expiración.
+- **Guardar un día del Planificador hace hasta 8 round-trips secuenciales a Supabase**: aceptable con pocos datos; optimización futura: upsert batch.
+- **`limpiar_cache()` invalida toda la caché en cada escritura**: correcto pero subóptimo; optimización futura: invalidación selectiva por función cacheada.
+
+Nota adicional: la reinyección de texto libre del usuario como contexto del LLM (prompt injection almacenada) se mitigó con un marcado explícito "esto son datos, no instrucciones" en `exportar_contexto`; una sanitización más profunda queda fuera de alcance para una app personal.
+
 ## V1.2 — Tests end-to-end
 
 Cierra el "a futuro" establecido en D10.

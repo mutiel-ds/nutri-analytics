@@ -81,6 +81,25 @@ def test_recetas_a_markdown_macros_faltantes_como_interrogante():
     assert "* **Macros:** ? kcal | P: ?g | C: ?g | G: ?g" in md
 
 
+def test_recetas_a_markdown_descripcion_multilinea_se_colapsa_a_una_linea():
+    """Una descripción con saltos de línea internos no debe romper el bullet
+    Markdown: los saltos se colapsan a un espacio."""
+    receta = {
+        "id": "12345-xxxx",
+        "titulo": "Receta con descripción larga",
+        "descripcion": "Primera línea.\nSegunda línea.\r\nTercera línea.",
+        "ingredientes": [],
+    }
+    md = recetas_a_markdown([receta])
+    lineas = md.splitlines()
+    linea_descripcion = next(l for l in lineas if l.startswith("* **Descripción:**"))
+    assert linea_descripcion == (
+        "* **Descripción:** Primera línea. Segunda línea. Tercera línea."
+    )
+    # Las instrucciones sí conservan sus saltos de línea (no forman parte de
+    # este arreglo).
+
+
 def test_recetas_a_markdown_separador_entre_recetas():
     """Cada receta termina con un separador '---'."""
     recetas = [
@@ -335,3 +354,86 @@ def test_lista_compra_a_dataframe_lista_vacia():
     df = lista_compra_a_dataframe([])
     assert df.empty
     assert list(df.columns) == ["Item", "Cantidad", "Categoria", "Comprado"]
+
+
+# -----------------------------------------------------------------------------
+# Neutralización de inyección de fórmulas CSV (CSV formula injection)
+# -----------------------------------------------------------------------------
+
+
+def test_lista_compra_a_dataframe_neutraliza_formula_en_columnas_de_texto():
+    """Un valor de texto que empieza por '=' se neutraliza con un apóstrofo
+    delante, para que Excel no lo interprete como fórmula; un valor normal
+    como '500g' queda intacto, y None también queda intacto."""
+    items = [
+        {"item": "=SUM(A1)", "cantidad": "500g", "categoria": None, "comprado": False},
+    ]
+    df = lista_compra_a_dataframe(items)
+    assert df.loc[0, "Item"] == "'=SUM(A1)"
+    assert df.loc[0, "Cantidad"] == "500g"
+    assert df.loc[0, "Categoria"] is None or pd.isna(df.loc[0, "Categoria"])
+
+
+def test_lista_compra_a_dataframe_neutraliza_todos_los_caracteres_peligrosos():
+    """Los 4 caracteres peligrosos (=, +, -, @) se neutralizan igual."""
+    items = [
+        {"item": "=cmd", "cantidad": "1", "categoria": "x", "comprado": False},
+        {"item": "+cmd", "cantidad": "1", "categoria": "x", "comprado": False},
+        {"item": "-cmd", "cantidad": "1", "categoria": "x", "comprado": False},
+        {"item": "@cmd", "cantidad": "1", "categoria": "x", "comprado": False},
+    ]
+    df = lista_compra_a_dataframe(items)
+    assert list(df["Item"]) == ["'=cmd", "'+cmd", "'-cmd", "'@cmd"]
+
+
+def test_salud_a_dataframe_neutraliza_formula_en_notas():
+    """La columna Notas neutraliza fórmulas; las columnas numéricas no se tocan."""
+    metricas = [
+        {
+            "fecha": "1999-01-04",
+            "peso": 80.0,
+            "porcentaje_grasa": 20.0,
+            "perimetro_cintura": 90,
+            "notas": "=SUM(A1)",
+        }
+    ]
+    df = salud_a_dataframe(metricas)
+    assert df.loc[0, "Notas"] == "'=SUM(A1)"
+    assert df.loc[0, "Peso"] == 80.0
+
+
+def test_deporte_a_dataframe_neutraliza_formula_en_columnas_de_texto():
+    """Tipo_Actividad, Intensidad y Comentarios neutralizan fórmulas; Duracion
+    y Volumen_Kg (numéricas) no se tocan."""
+    actividades = [
+        {
+            "fecha": "1999-01-04T08:00:00+00:00",
+            "tipo_actividad": "=cmd",
+            "duracion_minutos": 30,
+            "intensidad": "+Alta",
+            "volumen_total_kg": 100.0,
+            "comentarios": "@nota",
+        }
+    ]
+    df = deporte_a_dataframe(actividades)
+    assert df.loc[0, "Tipo_Actividad"] == "'=cmd"
+    assert df.loc[0, "Intensidad"] == "'+Alta"
+    assert df.loc[0, "Comentarios"] == "'@nota"
+    assert df.loc[0, "Duracion"] == 30
+    assert df.loc[0, "Volumen_Kg"] == 100.0
+
+
+def test_menus_a_dataframe_neutraliza_formula_en_nombre_receta_y_nota():
+    """Nombre_Receta (vía nota_adicional de fallback) y Nota neutralizan
+    fórmulas; Calorias (numérica) no se toca."""
+    menus = [
+        {
+            "fecha": "1999-01-04",
+            "tipo_comida": "Almuerzo",
+            "nota_adicional": "=SUM(A1)",
+            "recetas": None,
+        }
+    ]
+    df = menus_a_dataframe(menus)
+    assert df.loc[0, "Nombre_Receta"] == "'=SUM(A1)"
+    assert df.loc[0, "Nota"] == "'=SUM(A1)"

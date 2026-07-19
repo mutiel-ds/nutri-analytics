@@ -124,6 +124,16 @@ def test_actualizar_receta_llama_update_y_eq(cliente_mock):
     assert resultado == actualizada
 
 
+def test_actualizar_receta_id_inexistente_lanza_valueerror(cliente_mock):
+    """Si el id no existe (data=[] devuelto por PostgREST), lanza ValueError en vez
+    de IndexError al indexar data[0]."""
+    consulta = cliente_mock.table.return_value.update.return_value.eq.return_value
+    consulta.execute.return_value.data = []
+
+    with pytest.raises(ValueError, match="no-existe"):
+        database.actualizar_receta("no-existe", {"calorias": 100})
+
+
 def test_eliminar_receta_llama_delete_y_eq(cliente_mock):
     """eliminar_receta llama a .delete().eq("id", receta_id)."""
     database.eliminar_receta("r1")
@@ -199,6 +209,28 @@ def test_obtener_menu_rango_usa_select_embed_y_rango_de_fechas(cliente_mock):
     assert resultado == menu
 
 
+def test_obtener_menu_rango_invertido_lanza_valueerror_sin_tocar_cliente(cliente_mock):
+    """fecha_desde posterior a fecha_hasta lanza ValueError sin llegar a llamar a .table()."""
+    with pytest.raises(ValueError):
+        database.obtener_menu_rango("2026-07-31", "2026-07-01")
+
+    cliente_mock.table.assert_not_called()
+
+
+def test_eliminar_comida_llama_delete_y_eq_fecha_y_tipo_comida(cliente_mock):
+    """eliminar_comida llama a .delete().eq("fecha", fecha).eq("tipo_comida", tipo_comida)."""
+    database.eliminar_comida("2026-07-18", "Desayuno")
+
+    cliente_mock.table.assert_called_with("menus_semanales")
+    cliente_mock.table.return_value.delete.return_value.eq.assert_called_with(
+        "fecha", "2026-07-18"
+    )
+    cliente_mock.table.return_value.delete.return_value.eq.return_value.eq.assert_called_with(
+        "tipo_comida", "Desayuno"
+    )
+    cliente_mock.table.return_value.delete.return_value.eq.return_value.eq.return_value.execute.assert_called_once()
+
+
 # -----------------------------------------------------------------------------
 # 3. metricas_salud
 # -----------------------------------------------------------------------------
@@ -259,6 +291,50 @@ def test_eliminar_metricas_llama_delete_y_eq(cliente_mock):
     cliente_mock.table.return_value.delete.return_value.eq.return_value.execute.assert_called_once()
 
 
+def test_obtener_historico_salud_sin_filtros_ordena_asc_y_no_llama_gte_ni_lte(
+    cliente_mock,
+):
+    """Sin fecha_desde/fecha_hasta, ordena por fecha ascendente y no filtra con .gte/.lte."""
+    historico = [{"fecha": "2026-01-01"}, {"fecha": "2026-01-02"}]
+    consulta = cliente_mock.table.return_value.select.return_value.order.return_value
+    consulta.execute.return_value.data = historico
+
+    resultado = database.obtener_historico_salud()
+
+    cliente_mock.table.assert_called_with("metricas_salud")
+    cliente_mock.table.return_value.select.return_value.order.assert_called_with(
+        "fecha"
+    )
+    consulta.gte.assert_not_called()
+    consulta.lte.assert_not_called()
+    assert resultado == historico
+
+
+def test_obtener_historico_salud_con_filtros_llama_gte_y_lte(cliente_mock):
+    """Con fecha_desde y fecha_hasta, filtra encadenando .gte("fecha", ...) y .lte("fecha", ...)."""
+    consulta = cliente_mock.table.return_value.select.return_value.order.return_value
+    consulta.gte.return_value.lte.return_value.execute.return_value.data = []
+
+    database.obtener_historico_salud(
+        fecha_desde="2026-01-01", fecha_hasta="2026-01-31"
+    )
+
+    consulta.gte.assert_called_with("fecha", "2026-01-01")
+    consulta.gte.return_value.lte.assert_called_with("fecha", "2026-01-31")
+
+
+def test_obtener_historico_salud_rango_invertido_lanza_valueerror_sin_tocar_cliente(
+    cliente_mock,
+):
+    """fecha_desde posterior a fecha_hasta lanza ValueError sin llegar a llamar a .table()."""
+    with pytest.raises(ValueError):
+        database.obtener_historico_salud(
+            fecha_desde="2026-02-01", fecha_hasta="2026-01-01"
+        )
+
+    cliente_mock.table.assert_not_called()
+
+
 # -----------------------------------------------------------------------------
 # 4. actividad_deporte
 # -----------------------------------------------------------------------------
@@ -306,9 +382,99 @@ def test_registrar_actividad_intensidad_invalida_lanza_valueerror_sin_tocar_clie
     cliente_mock.table.assert_not_called()
 
 
+def test_obtener_historico_deporte_sin_filtros_ordena_desc_y_no_llama_gte_ni_lte(
+    cliente_mock,
+):
+    """Sin fecha_desde/fecha_hasta, ordena por fecha descendente y no filtra con .gte/.lte."""
+    historico = [{"fecha": "2026-01-02"}, {"fecha": "2026-01-01"}]
+    consulta = cliente_mock.table.return_value.select.return_value.order.return_value
+    consulta.execute.return_value.data = historico
+
+    resultado = database.obtener_historico_deporte()
+
+    cliente_mock.table.assert_called_with("actividad_deporte")
+    cliente_mock.table.return_value.select.return_value.order.assert_called_with(
+        "fecha", desc=True
+    )
+    consulta.gte.assert_not_called()
+    consulta.lte.assert_not_called()
+    assert resultado == historico
+
+
+def test_obtener_historico_deporte_con_filtros_llama_gte_y_lte(cliente_mock):
+    """Con fecha_desde y fecha_hasta, filtra encadenando .gte("fecha", ...) y .lte("fecha", ...)."""
+    consulta = cliente_mock.table.return_value.select.return_value.order.return_value
+    consulta.gte.return_value.lte.return_value.execute.return_value.data = []
+
+    database.obtener_historico_deporte(
+        fecha_desde="2026-01-01", fecha_hasta="2026-01-31"
+    )
+
+    consulta.gte.assert_called_with("fecha", "2026-01-01")
+    consulta.gte.return_value.lte.assert_called_with("fecha", "2026-01-31")
+
+
+def test_obtener_historico_deporte_rango_invertido_lanza_valueerror_sin_tocar_cliente(
+    cliente_mock,
+):
+    """fecha_desde posterior a fecha_hasta lanza ValueError sin llegar a llamar a .table()."""
+    with pytest.raises(ValueError):
+        database.obtener_historico_deporte(
+            fecha_desde="2026-02-01", fecha_hasta="2026-01-01"
+        )
+
+    cliente_mock.table.assert_not_called()
+
+
+def test_eliminar_actividad_llama_delete_y_eq(cliente_mock):
+    """eliminar_actividad llama a .delete().eq("id", actividad_id)."""
+    database.eliminar_actividad("a1")
+
+    cliente_mock.table.assert_called_with("actividad_deporte")
+    cliente_mock.table.return_value.delete.return_value.eq.assert_called_with(
+        "id", "a1"
+    )
+    cliente_mock.table.return_value.delete.return_value.eq.return_value.execute.assert_called_once()
+
+
 # -----------------------------------------------------------------------------
 # 5. lista_compra
 # -----------------------------------------------------------------------------
+
+
+def test_obtener_lista_sin_solo_pendientes_no_llama_a_eq_y_ordena_por_categoria_e_item(
+    cliente_mock,
+):
+    """Sin solo_pendientes, ordena por categoria e item (dos .order encadenados) y no filtra."""
+    lista = [{"id": "1", "item": "Leche", "categoria": "Lácteos"}]
+    consulta = (
+        cliente_mock.table.return_value.select.return_value.order.return_value.order.return_value
+    )
+    consulta.execute.return_value.data = lista
+
+    resultado = database.obtener_lista()
+
+    cliente_mock.table.assert_called_with("lista_compra")
+    cliente_mock.table.return_value.select.return_value.order.assert_called_with(
+        "categoria"
+    )
+    cliente_mock.table.return_value.select.return_value.order.return_value.order.assert_called_with(
+        "item"
+    )
+    consulta.eq.assert_not_called()
+    assert resultado == lista
+
+
+def test_obtener_lista_con_solo_pendientes_llama_a_eq_comprado_false(cliente_mock):
+    """Con solo_pendientes=True, filtra con .eq("comprado", False)."""
+    consulta = (
+        cliente_mock.table.return_value.select.return_value.order.return_value.order.return_value
+    )
+    consulta.eq.return_value.execute.return_value.data = []
+
+    database.obtener_lista(solo_pendientes=True)
+
+    consulta.eq.assert_called_with("comprado", False)
 
 
 def test_marcar_comprado_true_llama_update_y_eq(cliente_mock):
@@ -337,6 +503,27 @@ def test_marcar_comprado_false_llama_update_con_false(cliente_mock):
 
     cliente_mock.table.return_value.update.assert_called_with({"comprado": False})
     assert resultado == actualizado
+
+
+def test_marcar_comprado_id_inexistente_lanza_valueerror(cliente_mock):
+    """Si el id no existe (data=[] devuelto por PostgREST), lanza ValueError en vez
+    de IndexError al indexar data[0]."""
+    consulta = cliente_mock.table.return_value.update.return_value.eq.return_value
+    consulta.execute.return_value.data = []
+
+    with pytest.raises(ValueError, match="no-existe"):
+        database.marcar_comprado("no-existe", True)
+
+
+def test_eliminar_item_llama_delete_y_eq(cliente_mock):
+    """eliminar_item llama a .delete().eq("id", item_id)."""
+    database.eliminar_item("i1")
+
+    cliente_mock.table.assert_called_with("lista_compra")
+    cliente_mock.table.return_value.delete.return_value.eq.assert_called_with(
+        "id", "i1"
+    )
+    cliente_mock.table.return_value.delete.return_value.eq.return_value.execute.assert_called_once()
 
 
 def test_vaciar_comprados_llama_delete_y_eq(cliente_mock):

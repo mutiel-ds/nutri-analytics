@@ -13,6 +13,7 @@ o cómo agrupar la lista de la compra) sin depender de Streamlit.
 
 from __future__ import annotations
 
+import unicodedata
 from datetime import date, timedelta
 
 # Nombres de los días de la semana en español (weekday(): 0 = Lunes). Se
@@ -148,6 +149,24 @@ def total_calorias_dia(comidas: list[dict]) -> int | None:
     return total if hay_calorias else None
 
 
+def _normalizar_categoria(categoria: str) -> str:
+    """Normaliza una categoría para agrupar variantes que solo difieren en
+    mayúsculas o acentos (p. ej. "Frutas" y "frutas" deben ir al mismo grupo).
+
+    Réplica local y simplificada de `filtros._normalizar` (minúsculas + sin
+    acentos): este módulo es stdlib puro y no importa de `filtros.py` para
+    mantenerse independiente.
+
+    Args:
+        categoria: nombre de categoría a normalizar.
+
+    Returns:
+        La cadena en minúsculas, sin espacios extremos ni diacríticos.
+    """
+    descompuesto = unicodedata.normalize("NFD", categoria.strip().lower())
+    return "".join(c for c in descompuesto if unicodedata.category(c) != "Mn")
+
+
 def agrupar_lista_compra(items: list[dict]) -> dict[str, list[dict]]:
     """Agrupa los items de la lista de la compra por categoría.
 
@@ -157,20 +176,28 @@ def agrupar_lista_compra(items: list[dict]) -> dict[str, list[dict]]:
 
     Returns:
         Dict categoria -> lista de items (ordenados por nombre de item).
-        Las categorías None o vacías se agrupan bajo "Sin categoría". Las
-        claves del dict resultante están ordenadas alfabéticamente, con
-        "Sin categoría" siempre al final.
+        Las categorías None o vacías se agrupan bajo "Sin categoría". El
+        agrupado usa una clave normalizada (minúsculas, sin acentos) para que
+        variantes como "Frutas" y "frutas" caigan en un único grupo; el
+        nombre mostrado del grupo es la primera variante vista (por orden de
+        aparición). Las claves del dict resultante están ordenadas
+        alfabéticamente por su clave normalizada, con "Sin categoría"
+        siempre al final.
     """
-    grupos: dict[str, list[dict]] = {}
+    grupos: dict[str, dict] = {}
     for item in items:
         categoria = item.get("categoria") or "Sin categoría"
-        grupos.setdefault(categoria, []).append(item)
+        clave = _normalizar_categoria(categoria)
+        if clave not in grupos:
+            grupos[clave] = {"nombre": categoria, "items": []}
+        grupos[clave]["items"].append(item)
 
-    for lista_items in grupos.values():
-        lista_items.sort(key=lambda i: (i.get("item") or "").lower())
+    for grupo in grupos.values():
+        grupo["items"].sort(key=lambda i: (i.get("item") or "").lower())
 
-    categorias_ordenadas = sorted(c for c in grupos if c != "Sin categoría")
-    if "Sin categoría" in grupos:
-        categorias_ordenadas.append("Sin categoría")
+    clave_sin_categoria = _normalizar_categoria("Sin categoría")
+    claves_ordenadas = sorted(c for c in grupos if c != clave_sin_categoria)
+    if clave_sin_categoria in grupos:
+        claves_ordenadas.append(clave_sin_categoria)
 
-    return {categoria: grupos[categoria] for categoria in categorias_ordenadas}
+    return {grupos[clave]["nombre"]: grupos[clave]["items"] for clave in claves_ordenadas}

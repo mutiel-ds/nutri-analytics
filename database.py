@@ -22,6 +22,21 @@ INTENSIDADES = ("Alta", "Media", "Baja")
 _client: Client | None = None
 
 
+def _validar_rango_fechas(fecha_desde: str | None, fecha_hasta: str | None) -> None:
+    """Valida que fecha_desde no sea posterior a fecha_hasta cuando ambas están presentes.
+
+    Las fechas usadas en este módulo siempre llegan en formato ISO 8601
+    (YYYY-MM-DD o timestamp ISO), donde el orden lexicográfico de los strings
+    coincide con el orden cronológico: comparar los strings directamente
+    (fecha_desde > fecha_hasta) es válido y evita tener que parsear fechas.
+    """
+    if fecha_desde is not None and fecha_hasta is not None and fecha_desde > fecha_hasta:
+        raise ValueError(
+            f"Rango de fechas inválido: fecha_desde ({fecha_desde!r}) es posterior "
+            f"a fecha_hasta ({fecha_hasta!r})."
+        )
+
+
 def get_client() -> Client:
     """Devuelve el cliente de Supabase, creándolo una sola vez (singleton de módulo)."""
     global _client
@@ -66,6 +81,8 @@ def actualizar_receta(receta_id: str, cambios: dict) -> dict:
     respuesta = (
         get_client().table("recetas").update(cambios).eq("id", receta_id).execute()
     )
+    if not respuesta.data:
+        raise ValueError(f"No existe ninguna receta con id {receta_id!r}.")
     return respuesta.data[0]
 
 
@@ -110,6 +127,7 @@ def guardar_comida(
 
 def obtener_menu_rango(fecha_desde: str, fecha_hasta: str) -> list[dict]:
     """Devuelve las comidas planificadas entre dos fechas (incluidas), con su receta asociada."""
+    _validar_rango_fechas(fecha_desde, fecha_hasta)
     respuesta = (
         get_client()
         .table("menus_semanales")
@@ -167,6 +185,8 @@ def marcar_comprado(item_id: str, comprado: bool = True) -> dict:
         .eq("id", item_id)
         .execute()
     )
+    if not respuesta.data:
+        raise ValueError(f"No existe ningún item de la lista de la compra con id {item_id!r}.")
     return respuesta.data[0]
 
 
@@ -226,6 +246,7 @@ def obtener_historico_salud(
     fecha_desde: str | None = None, fecha_hasta: str | None = None
 ) -> list[dict]:
     """Devuelve el histórico de métricas de salud ordenado por fecha, con filtros opcionales."""
+    _validar_rango_fechas(fecha_desde, fecha_hasta)
     consulta = get_client().table("metricas_salud").select("*").order("fecha")
     if fecha_desde is not None:
         consulta = consulta.gte("fecha", fecha_desde)
@@ -272,6 +293,7 @@ def obtener_historico_deporte(
     fecha_desde: str | None = None, fecha_hasta: str | None = None
 ) -> list[dict]:
     """Devuelve el histórico de actividad deportiva ordenado por fecha descendente."""
+    _validar_rango_fechas(fecha_desde, fecha_hasta)
     consulta = get_client().table("actividad_deporte").select("*").order("fecha", desc=True)
     if fecha_desde is not None:
         consulta = consulta.gte("fecha", fecha_desde)

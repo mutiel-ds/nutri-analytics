@@ -30,8 +30,8 @@ def _seccion_comidas_de_hoy(hoy: date) -> None:
     try:
         comidas_hoy = comun.menu_rango_cacheado(hoy, hoy)
     except Exception as error:
-        comidas_hoy = []
         st.caption(f"No se pudo cargar el menú de hoy ({error}).")
+        return
 
     comidas_por_tipo = {c.get("tipo_comida"): c for c in comidas_hoy}
 
@@ -76,16 +76,26 @@ def _seccion_exportar_contexto(hoy: date) -> None:
     hasta = st.date_input("Hasta", value=domingo)
 
     if st.button("🤖 Generar exportación", type="primary", use_container_width=True):
-        try:
-            zip_bytes = exporter.generar_zip_contexto(desde.isoformat(), hasta.isoformat())
-            st.session_state["dashboard_zip_bytes"] = zip_bytes
-            st.session_state["dashboard_zip_nombre"] = (
-                f"contexto_ia_{desde:%Y%m%d}_{hasta:%Y%m%d}.zip"
+        if desde > hasta:
+            st.error(
+                "El rango de fechas no es válido: 'Desde' no puede ser posterior a 'Hasta'."
             )
-        except Exception as error:
-            st.error(f"No se pudo generar la exportación: {error}")
+        else:
+            try:
+                zip_bytes = exporter.generar_zip_contexto(desde.isoformat(), hasta.isoformat())
+                st.session_state["dashboard_zip_bytes"] = zip_bytes
+                st.session_state["dashboard_zip_nombre"] = (
+                    f"contexto_ia_{desde:%Y%m%d}_{hasta:%Y%m%d}.zip"
+                )
+                st.session_state["dashboard_zip_rango"] = (desde, hasta)
+            except Exception as error:
+                st.error(f"No se pudo generar la exportación: {error}")
 
-    if "dashboard_zip_bytes" in st.session_state:
+    zip_generado_para_rango_actual = st.session_state.get("dashboard_zip_rango") == (
+        desde,
+        hasta,
+    )
+    if "dashboard_zip_bytes" in st.session_state and zip_generado_para_rango_actual:
         st.download_button(
             "⬇️ Descargar ZIP",
             data=st.session_state["dashboard_zip_bytes"],
