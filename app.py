@@ -6,7 +6,7 @@ Usa `st.navigation` / `st.Page` (API moderna de Streamlit) en lugar de
 
 import streamlit as st
 
-from paginas import dashboard, lista_compra, planificador, recetario, stubs
+from paginas import dashboard, lista_compra, metricas, planificador, recetario
 
 st.set_page_config(page_title="Nutri Analytics", page_icon="🥗", layout="centered")
 
@@ -24,7 +24,7 @@ paginas = [
     st.Page(planificador.render, title="Planificador", icon="📅", url_path="planificador"),
     st.Page(recetario.render, title="Recetario", icon="🍳", url_path="recetario"),
     st.Page(lista_compra.render, title="Lista de la compra", icon="🛒", url_path="lista-compra"),
-    st.Page(stubs.metricas, title="Métricas", icon="📈"),
+    st.Page(metricas.render, title="Métricas", icon="📈", url_path="metricas"),
 ]
 
 pagina_activa = st.navigation(paginas)

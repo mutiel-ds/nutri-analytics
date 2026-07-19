@@ -217,6 +217,11 @@ def registrar_metricas(
     return respuesta.data[0]
 
 
+def eliminar_metricas(fecha: str) -> None:
+    """Elimina el registro de métricas de salud de una fecha concreta."""
+    get_client().table("metricas_salud").delete().eq("fecha", fecha).execute()
+
+
 def obtener_historico_salud(
     fecha_desde: str | None = None, fecha_hasta: str | None = None
 ) -> list[dict]:

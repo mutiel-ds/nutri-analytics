@@ -71,6 +71,28 @@ def lista_compra_cacheada() -> list[dict]:
     return database.obtener_lista()
 
 
+@st.cache_data(ttl=60)
+def historico_salud_cacheado() -> list[dict]:
+    """Wrapper cacheado de `database.obtener_historico_salud`.
+
+    El TTL corto (60s) evita golpear Supabase en cada rerun de Streamlit.
+    Tras cualquier escritura sobre métricas de salud hay que llamar a
+    `limpiar_cache()` para que el siguiente rerun refleje los cambios.
+    """
+    return database.obtener_historico_salud()
+
+
+@st.cache_data(ttl=60)
+def historico_deporte_cacheado() -> list[dict]:
+    """Wrapper cacheado de `database.obtener_historico_deporte`.
+
+    El TTL corto (60s) evita golpear Supabase en cada rerun de Streamlit.
+    Tras cualquier escritura sobre actividad deportiva hay que llamar a
+    `limpiar_cache()` para que el siguiente rerun refleje los cambios.
+    """
+    return database.obtener_historico_deporte()
+
+
 def limpiar_cache() -> None:
     """Invalida toda la caché de lecturas; llamar tras cualquier escritura en la BD."""
     st.cache_data.clear()

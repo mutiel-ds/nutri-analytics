@@ -248,6 +248,17 @@ def test_registrar_metricas_con_todos_los_campos_los_incluye_todos(cliente_mock)
     }
 
 
+def test_eliminar_metricas_llama_delete_y_eq(cliente_mock):
+    """eliminar_metricas llama a .delete().eq("fecha", fecha)."""
+    database.eliminar_metricas("2026-07-18")
+
+    cliente_mock.table.assert_called_with("metricas_salud")
+    cliente_mock.table.return_value.delete.return_value.eq.assert_called_with(
+        "fecha", "2026-07-18"
+    )
+    cliente_mock.table.return_value.delete.return_value.eq.return_value.execute.assert_called_once()
+
+
 # -----------------------------------------------------------------------------
 # 4. actividad_deporte
 # -----------------------------------------------------------------------------
