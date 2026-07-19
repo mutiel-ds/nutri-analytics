@@ -80,6 +80,12 @@ uv run streamlit run app.py
 
 La app estará disponible en `http://localhost:8501`.
 
+#### Acceso desde el móvil en red local (opcional)
+Si aún no has desplegado la app en la nube, puedes probarla desde el móvil dentro de tu WiFi:
+1. Ejecutar Streamlit en tu red: `uv run streamlit run app.py --server.address 0.0.0.0`
+2. Acceder desde Chrome en Android: `http://[tu-ip-local]:8501`
+3. Menú de Chrome → "Añadir a pantalla de inicio" para tenerla como acceso directo.
+
 ## Tests
 
 ### Tests unitarios
@@ -96,10 +102,31 @@ uv run pytest -m integration
 
 Ejecuta solo los tests de integración contra Supabase (requieren `.env` configurado con credenciales válidas). Utilizan datos con prefijo `[TEST]` y limpian automáticamente todo lo que crean.
 
-#### Instalar como PWA en Android
-1. Ejecutar Streamlit en tu red: `uv run streamlit run app.py --server.address 0.0.0.0`
-2. Acceder desde Chrome en Android: `http://[tu-ip-local]:8501`
-3. Menú de Chrome → "Instalar aplicación" para añadirla a la pantalla de inicio como app nativa.
+## Despliegue en Streamlit Community Cloud
+
+Siguiendo el modelo de distribución de la decisión [D7](docs/decisiones.md#d7--hosting-streamlit-community-cloud-con-app-privada-y-repo-público): la app es **auto-desplegable**, cada persona despliega su propia instancia con su propio proyecto de Supabase. No hay una instancia compartida ni datos que se crucen entre usuarios.
+
+### Requisitos
+
+- Una cuenta de GitHub con el repositorio (fork o clon propio).
+- Un proyecto propio de Supabase con la migración [`db/001_esquema_inicial.sql`](db/001_esquema_inicial.sql) ya ejecutada en su editor SQL.
+
+### Pasos
+
+1. Entra en [share.streamlit.io](https://share.streamlit.io) e inicia sesión con tu cuenta de GitHub.
+2. Pulsa **"Create app"** y elige tu repositorio, la rama `main` y el archivo `app.py`.
+3. En **"Advanced settings"**, selecciona la versión de Python del proyecto y pega tus secretos en formato TOML (*Tom's Obvious Minimal Language*, el formato de configuración que usa Streamlit):
+   ```toml
+   SUPABASE_URL = "https://tu-proyecto.supabase.co"
+   SUPABASE_SECRET_KEY = "sb_secret_..."
+   ```
+4. Pulsa **Deploy** y espera a que termine el build.
+5. **IMPORTANTE:** si el repositorio es público, la app nace pública. Ve a **Settings → Sharing** y marca **"Only specific people can view this app"**, añadiendo tu email — así tus datos de salud solo los ves tú.
+6. En el móvil, abre la URL de tu app en Chrome y usa el menú → **"Añadir a pantalla de inicio"** para tenerla como una app nativa.
+
+### Nota
+
+La app gratuita "se duerme" tras unos días sin uso y se despierta con un solo click al volver a abrirla. Tus datos están siempre a salvo en Supabase, independientemente de si la app o el proyecto de Supabase están dormidos.
 
 ## Privacidad y Datos Sensibles
 
