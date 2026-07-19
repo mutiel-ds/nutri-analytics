@@ -38,7 +38,7 @@ nutri-analytics/
 └── filtros.py                   # Sistema de filtros de recetas (lógica pura)
 ```
 
-Ver [docs/plan_app_personal.md](docs/plan_app_personal.md) para la especificación completa de arquitectura, modelo de datos (tablas SQL) y hoja de ruta de desarrollo. Consulta también [docs/decisiones.md](docs/decisiones.md) para el registro de decisiones de diseño.
+Ver [docs/plan_app_personal.md](docs/plan_app_personal.md) para la especificación completa de arquitectura, modelo de datos (tablas SQL) y hoja de ruta de desarrollo. Consulta también [docs/decisiones.md](docs/decisiones.md) para el registro de decisiones de diseño, y [docs/roadmap.md](docs/roadmap.md) para las líneas de mejora previstas.
 
 ## Puesta en Marcha
 
