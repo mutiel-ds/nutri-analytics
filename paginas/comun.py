@@ -60,6 +60,17 @@ def menu_rango_cacheado(desde: date, hasta: date) -> list[dict]:
     return database.obtener_menu_rango(desde.isoformat(), hasta.isoformat())
 
 
+@st.cache_data(ttl=60)
+def lista_compra_cacheada() -> list[dict]:
+    """Wrapper cacheado de `database.obtener_lista`.
+
+    El TTL corto (60s) evita golpear Supabase en cada rerun de Streamlit.
+    Tras cualquier escritura sobre la lista de la compra hay que llamar a
+    `limpiar_cache()` para que el siguiente rerun refleje los cambios.
+    """
+    return database.obtener_lista()
+
+
 def limpiar_cache() -> None:
     """Invalida toda la caché de lecturas; llamar tras cualquier escritura en la BD."""
     st.cache_data.clear()
