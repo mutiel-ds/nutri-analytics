@@ -7,6 +7,7 @@ readme = "README.md"
 # 3.14 (fijado en .python-version).
 requires-python = ">=3.12"
 dependencies = [
+    "mcp>=1.28.1",
     "pandas>=3.0.3",
     "plotly>=6.9.0",
     "python-dotenv>=1.2.2",

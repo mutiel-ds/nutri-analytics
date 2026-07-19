@@ -128,6 +128,54 @@ Siguiendo el modelo de distribución de la decisión [D7](docs/decisiones.md#d7-
 
 La app gratuita "se duerme" tras unos días sin uso y se despierta con un solo click al volver a abrirla. Tus datos están siempre a salvo en Supabase, independientemente de si la app o el proyecto de Supabase están dormidos.
 
+## Servidor MCP (usar la app desde un agente de IA)
+
+La lógica de negocio de nutri-analytics se expone como un servidor [MCP](https://modelcontextprotocol.io/) (*Model Context Protocol*, estándar abierto para conectar herramientas a LLMs) que permite a agentes de IA como Claude automatizar tareas complejas directamente sobre tus datos. Ejemplo: *"Planifícame la semana con mis recetas habituales y hazme la lista de la compra"* — el agente lee tu catálogo, consulta tu menú y escribe los ítems de compra en la base de datos sin pasar por la interfaz Streamlit.
+
+### Características
+
+- **Local-first**: el servidor corre en tu máquina con `uv run python mcp_server.py`; tus credenciales de Supabase viven en `.env` y nunca salen de ahí.
+- **12 tools disponibles** para consultar, crear y actualizar:
+
+| Tool | Descripción |
+|------|-------------|
+| `listar_recetas` | Consultar el catálogo de recetas con filtros opcionales (macros, ingredientes, etc.) |
+| `crear_receta` | Crear una nueva receta con macros y ingredientes |
+| `consultar_menu` | Ver el menú semanal de un rango de fechas |
+| `planificar_comida` | Asignar una receta a una comida (desayuno/almuerzo/cena) en una fecha |
+| `consultar_lista_compra` | Ver la lista de la compra actual con estado de ítems |
+| `agregar_item_compra` | Añadir un ítem a la lista de la compra |
+| `marcar_item_comprado` | Marcar un ítem como comprado |
+| `registrar_metricas` | Registrar peso, composición corporal y otras métricas de salud |
+| `historico_salud` | Consultar el histórico de métricas de salud |
+| `registrar_actividad` | Registrar una actividad deportiva (tipo, duración, calorías) |
+| `historico_deporte` | Consultar el histórico de actividades registradas |
+| `exportar_contexto` | Exportar datos (recetas, menú, métricas) en formato Markdown para análisis con LLMs |
+
+**Nota sobre seguridad:** no se exponen tools de borrado (`eliminar_receta`, `eliminar_comida`, etc.). El agente puede consultar, crear y actualizar, pero los borrados son siempre explícitos desde la app.
+
+### Configuración en un cliente MCP
+
+Para registrar el servidor en un cliente MCP local (ej. [Claude Desktop](https://claude.ai/download) o [Claude Code](https://github.com/anthropics/claude-code)):
+
+1. Abre el archivo de configuración MCP de tu cliente (`~/.claude/claude_desktop_config.json` en Desktop, o `.claude/settings.json` en Code).
+2. Añade la entrada del servidor nutri-analytics:
+
+```json
+{
+  "mcpServers": {
+    "nutri-analytics": {
+      "command": "uv",
+      "args": ["run", "--directory", "C:/ruta/a/nutri-analytics", "python", "mcp_server.py"]
+    }
+  }
+}
+```
+
+Reemplaza `C:/ruta/a/nutri-analytics` con la ruta completa a tu clon del repositorio.
+
+3. Reinicia el cliente; el servidor aparecerá en la lista de herramientas disponibles.
+
 ## Privacidad y Datos Sensibles
 
 Los datos de salud personales exportados se mantienen fuera del repositorio:
