@@ -27,6 +27,8 @@ muestra como "menos de") y `describir_filtro` compone la frase completa.
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from typing import Any
 
 # -----------------------------------------------------------------------------
@@ -168,6 +170,40 @@ def validar_filtro(filtro: dict) -> None:
             )
 
 
+_MARCADOR_ENIE = "\x00"
+
+
+def _normalizar(texto: str) -> str:
+    """Normaliza texto para comparaciones robustas frente a acentos y mayúsculas.
+
+    Pasa a minúsculas, recorta espacios extremos y elimina los diacríticos
+    (acentos, diéresis...) descomponiendo el texto en forma canónica NFD
+    (Normalization Form Decomposition, que separa cada carácter acentuado en
+    su letra base + su marca de acentuación) y filtrando los caracteres de
+    categoría Unicode "Mn" (Mark, nonspacing = marca que no ocupa espacio
+    propio, como una tilde). Así "Melocotón" y "melocoton" se normalizan al
+    mismo valor.
+
+    La "ñ" es una excepción: en español es una letra propia, no una "n" con
+    diacrítico, así que NO se elimina su marca. Para lograrlo, antes de la
+    descomposición NFD se sustituye temporalmente cada "ñ" por un carácter
+    marcador (que no aparece en texto normal), y al final se restaura. Así
+    "caña" NO se normaliza igual que "cana", pero "España" sigue
+    normalizándose igual que "españa".
+
+    Args:
+        texto: cadena a normalizar.
+
+    Returns:
+        La cadena en minúsculas, sin espacios extremos ni diacríticos (salvo
+        la "ñ", que se conserva).
+    """
+    texto = texto.strip().lower().replace("ñ", _MARCADOR_ENIE)
+    descompuesto = unicodedata.normalize("NFD", texto)
+    sin_diacriticos = "".join(c for c in descompuesto if unicodedata.category(c) != "Mn")
+    return sin_diacriticos.replace(_MARCADOR_ENIE, "ñ")
+
+
 def aplicar_filtros(recetas: list[dict], filtros: list[dict]) -> list[dict]:
     """Aplica una lista de filtros a una lista de recetas, en modo AND aditivo.
 
@@ -178,13 +214,22 @@ def aplicar_filtros(recetas: list[dict], filtros: list[dict]) -> list[dict]:
         - numérico: compara `receta[campo]` con `valor` usando el operador.
           Si el campo es `None` en la receta, la receta NO pasa el filtro
           (no se puede comparar un valor ausente).
-        - enum: compara igualdad/desigualdad case-insensitive. Si el campo
-          es `None`, la receta NO pasa "=" pero SÍ pasa "!=" (un valor
-          ausente siempre es "distinto" del valor buscado).
-        - ingredientes: hace una búsqueda de subcadena case-insensitive
-          sobre cada línea de la lista de ingredientes de la receta.
-          "contiene": pasa si alguna línea contiene el texto buscado.
-          "no contiene": pasa si ninguna línea lo contiene.
+        - enum: compara igualdad/desigualdad ignorando mayúsculas/minúsculas
+          y acentos (vía `_normalizar`; "Desayuno" ≡ "desayuno" ≡
+          "melocotón" ≡ "melocoton"). Si el campo es `None`, la receta NO
+          pasa "=" pero SÍ pasa "!=" (un valor ausente siempre es
+          "distinto" del valor buscado).
+        - ingredientes: coincidencia por palabra completa (no por subcadena
+          pura) sobre el texto normalizado (sin mayúsculas ni acentos) de
+          cada línea de ingredientes, admitiendo plural simple (sufijo "-s"
+          o "-es"). El valor buscado puede ser una frase de varias palabras
+          (p. ej. "aceite de oliva"). Así "sal" coincide con "sal marina"
+          pero no con "ensalada" ni "salsa"; "tomate" coincide con
+          "tomates". "contiene": pasa si alguna línea coincide.
+          "no contiene": pasa si ninguna línea coincide.
+          Limitación conocida: no hay sinónimos ni fuzzy matching (esa
+          semántica la aporta el agente de IA que consuma este módulo, no
+          el motor de filtros; fuera de alcance, ver roadmap V1.1).
 
     Args:
         recetas: lista de diccionarios de receta.
@@ -223,13 +268,13 @@ def _cumple_filtro(receta: dict, filtro: dict) -> bool:
         if valor_receta is None:
             # None nunca es igual a un valor concreto, pero sí es "distinto".
             return operador == "!="
-        coincide = str(valor_receta).strip().lower() == valor.strip().lower()
+        coincide = _normalizar(str(valor_receta)) == _normalizar(valor)
         return coincide if operador == "=" else not coincide
 
     # tipo == "ingredientes"
     lineas = receta.get(campo) or []
-    texto_buscado = valor.strip().lower()
-    alguna_coincide = any(texto_buscado in str(linea).lower() for linea in lineas)
+    patron = re.compile(r"\b" + re.escape(_normalizar(valor)) + r"(?:es|s)?\b")
+    alguna_coincide = any(patron.search(_normalizar(str(linea))) for linea in lineas)
     return alguna_coincide if operador == "contiene" else not alguna_coincide
 
 
