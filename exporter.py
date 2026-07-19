@@ -44,6 +44,33 @@ DIAS_SEMANA_ES: list[str] = [
 ORDEN_TIPOS_COMIDA: list[str] = ["Desayuno", "Almuerzo", "Merienda", "Cena"]
 
 
+def _neutralizar_formula(valor: object) -> object:
+    """Neutraliza la inyección de fórmulas CSV (CSV formula injection) en
+    campos de texto libre.
+
+    Si un CSV se abre en Excel (u otra hoja de cálculo) y una celda empieza
+    por "=", "+", "-" o "@", el programa la interpreta como una fórmula y la
+    ejecuta, lo que permite inyectar comandos a través de texto libre
+    guardado por la persona usuaria (p. ej. en una nota o un comentario).
+    Para evitarlo, a los valores `str` que empiecen por uno de esos
+    caracteres se les antepone un apóstrofo, que fuerza a la hoja de cálculo
+    a tratarlos como texto literal.
+
+    Solo actúa sobre `str`; cualquier otro tipo (None, números, booleanos...)
+    se devuelve sin modificar.
+
+    Args:
+        valor: valor de una celda de texto libre.
+
+    Returns:
+        El valor original, o con un apóstrofo antepuesto si es un `str` que
+        empieza por "=", "+", "-" o "@".
+    """
+    if isinstance(valor, str) and valor and valor[0] in ("=", "+", "-", "@"):
+        return "'" + valor
+    return valor
+
+
 def _parse_fecha(valor: str | date | datetime) -> date:
     """Normaliza un valor de fecha (str 'YYYY-MM-DD', str ISO con hora, date o
     datetime, tal como pueden llegar desde Supabase) a un objeto `date`."""
@@ -80,7 +107,15 @@ def recetas_a_markdown(recetas: list[dict]) -> str:
 
         descripcion = receta.get("descripcion")
         if descripcion:
-            lineas.append(f"* **Descripción:** {descripcion}")
+            # Colapsamos los saltos de línea internos a un espacio: una
+            # descripción multilínea, tal cual, rompería el bullet Markdown
+            # (la segunda línea quedaría fuera de la lista). Las
+            # instrucciones sí conservan sus saltos de línea, en su propia
+            # sección, porque ahí son legítimos (pasos numerados, etc.).
+            descripcion_una_linea = descripcion.replace("\r\n", " ").replace(
+                "\r", " "
+            ).replace("\n", " ")
+            lineas.append(f"* **Descripción:** {descripcion_una_linea}")
 
         categoria = receta.get("categoria")
         if categoria:
@@ -147,9 +182,9 @@ def menus_a_dataframe(menus: list[dict]) -> pd.DataFrame:
                 "Fecha": fecha_obj.isoformat(),
                 "Dia": DIAS_SEMANA_ES[fecha_obj.weekday()],
                 "Tipo_Comida": menu.get("tipo_comida"),
-                "Nombre_Receta": nombre_receta,
+                "Nombre_Receta": _neutralizar_formula(nombre_receta),
                 "Calorias": calorias,
-                "Nota": nota,
+                "Nota": _neutralizar_formula(nota),
             }
         )
 
@@ -178,7 +213,7 @@ def salud_a_dataframe(metricas: list[dict]) -> pd.DataFrame:
             "Peso": m.get("peso"),
             "Porcentaje_Grasa": m.get("porcentaje_grasa"),
             "Cintura": m.get("perimetro_cintura"),
-            "Notas": m.get("notas"),
+            "Notas": _neutralizar_formula(m.get("notas")),
         }
         for m in metricas
     ]
@@ -206,11 +241,11 @@ def deporte_a_dataframe(actividades: list[dict]) -> pd.DataFrame:
     filas = [
         {
             "Fecha": _parse_fecha(a["fecha"]).isoformat(),
-            "Tipo_Actividad": a.get("tipo_actividad"),
+            "Tipo_Actividad": _neutralizar_formula(a.get("tipo_actividad")),
             "Duracion": a.get("duracion_minutos"),
-            "Intensidad": a.get("intensidad"),
+            "Intensidad": _neutralizar_formula(a.get("intensidad")),
             "Volumen_Kg": a.get("volumen_total_kg"),
-            "Comentarios": a.get("comentarios"),
+            "Comentarios": _neutralizar_formula(a.get("comentarios")),
         }
         for a in actividades
     ]
@@ -229,9 +264,9 @@ def lista_compra_a_dataframe(items: list[dict]) -> pd.DataFrame:
 
     filas = [
         {
-            "Item": i.get("item"),
-            "Cantidad": i.get("cantidad"),
-            "Categoria": i.get("categoria"),
+            "Item": _neutralizar_formula(i.get("item")),
+            "Cantidad": _neutralizar_formula(i.get("cantidad")),
+            "Categoria": _neutralizar_formula(i.get("categoria")),
             "Comprado": i.get("comprado"),
         }
         for i in items

@@ -160,6 +160,32 @@ def test_enum_igual_case_insensitive():
     assert aplicar_filtros([receta], [filtro]) == [receta]
 
 
+def test_enum_ene_con_tilde_no_es_diacritico_cana_no_coincide_con_cania():
+    """La 'ñ' es letra propia en español, no una 'n' con diacrítico: no debe
+    eliminarse su marca al normalizar. "Caña" no debe coincidir con "Cana"."""
+    receta = {"categoria": "Caña"}
+    filtro = {"campo": "categoria", "operador": "=", "valor": "Cana"}
+    assert aplicar_filtros([receta], [filtro]) == []
+
+
+def test_enum_ene_con_tilde_espana_coincide_con_espana_minusculas():
+    """"España" y "españa" (mayúsculas/minúsculas) siguen normalizándose igual,
+    ya que la 'ñ' se conserva pero sigue pasando a minúsculas."""
+    receta = {"categoria": "España"}
+    filtro = {"campo": "categoria", "operador": "=", "valor": "españa"}
+    assert aplicar_filtros([receta], [filtro]) == [receta]
+
+
+def test_enum_igual_ignora_acentos():
+    """El operador '=' de enum compara ignorando también los acentos."""
+    receta = {"categoria": "Melocotón"}
+    filtro = {"campo": "categoria", "operador": "=", "valor": "melocoton"}
+    assert aplicar_filtros([receta], [filtro]) == [receta]
+
+    filtro_mayus = {"campo": "categoria", "operador": "=", "valor": "MELOCOTÓN"}
+    assert aplicar_filtros([receta], [filtro_mayus]) == [receta]
+
+
 def test_enum_distinto_case_insensitive():
     """El operador '!=' de enum compara ignorando mayúsculas/minúsculas."""
     receta = {"categoria": "Cena"}
@@ -184,15 +210,15 @@ def test_enum_campo_none_no_pasa_igual_pero_si_pasa_distinto():
 # -----------------------------------------------------------------------------
 
 
-def test_ingredientes_contiene_case_insensitive_subcadena():
-    """'contiene' encuentra coincidencias de subcadena, ignorando mayúsculas."""
+def test_ingredientes_contiene_case_insensitive():
+    """'contiene' encuentra coincidencias por palabra completa, ignorando mayúsculas."""
     receta = {"ingredientes": ["Brócoli al vapor", "Sal"]}
     filtro = {"campo": "ingredientes", "operador": "contiene", "valor": "BRÓCOLI"}
     assert aplicar_filtros([receta], [filtro]) == [receta]
 
 
-def test_ingredientes_contiene_subcadena_parcial():
-    """'contiene' funciona con una subcadena parcial dentro de una línea de ingrediente."""
+def test_ingredientes_contiene_palabra_dentro_de_una_linea_mas_larga():
+    """'contiene' encuentra la palabra buscada aunque la línea tenga más texto alrededor."""
     receta = {"ingredientes": ["200g de pollo troceado"]}
     filtro = {"campo": "ingredientes", "operador": "contiene", "valor": "pollo"}
     assert aplicar_filtros([receta], [filtro]) == [receta]
@@ -222,6 +248,58 @@ def test_ingredientes_lista_vacia_o_none():
         receta_vacia,
         receta_none,
     ]
+
+
+# -----------------------------------------------------------------------------
+# Ingredientes: coincidencia por palabra completa (no subcadena pura) — V1.1
+# -----------------------------------------------------------------------------
+
+
+def test_ingredientes_palabra_completa_no_coincide_con_subcadena_de_otra_palabra():
+    """'sal' coincide con líneas donde aparece como palabra, no como subcadena de otra."""
+    receta_pizca = {"ingredientes": ["Una pizca de sal"]}
+    receta_marina = {"ingredientes": ["Sal marina"]}
+    receta_ensalada = {"ingredientes": ["Ensalada de tomate"]}
+    receta_salsa = {"ingredientes": ["Salsa de tomate"]}
+    receta_salmon = {"ingredientes": ["Salmón a la plancha"]}
+    filtro = {"campo": "ingredientes", "operador": "contiene", "valor": "sal"}
+
+    assert aplicar_filtros([receta_pizca], [filtro]) == [receta_pizca]
+    assert aplicar_filtros([receta_marina], [filtro]) == [receta_marina]
+    assert aplicar_filtros([receta_ensalada], [filtro]) == []
+    assert aplicar_filtros([receta_salsa], [filtro]) == []
+    assert aplicar_filtros([receta_salmon], [filtro]) == []
+
+
+def test_ingredientes_normaliza_acentos_en_ambos_sentidos():
+    """El valor buscado y las líneas de ingredientes se normalizan igual: con o sin acento coinciden."""
+    receta = {"ingredientes": ["100g de salmón ahumado"]}
+    filtro_sin_acento = {"campo": "ingredientes", "operador": "contiene", "valor": "salmon"}
+    filtro_con_acento = {"campo": "ingredientes", "operador": "contiene", "valor": "salmón"}
+    assert aplicar_filtros([receta], [filtro_sin_acento]) == [receta]
+    assert aplicar_filtros([receta], [filtro_con_acento]) == [receta]
+
+
+def test_ingredientes_admite_plural_simple():
+    """La coincidencia admite plural simple: sufijo '-s' o '-es'."""
+    receta_tomates = {"ingredientes": ["Tomates en rama"]}
+    filtro_tomate = {"campo": "ingredientes", "operador": "contiene", "valor": "tomate"}
+    assert aplicar_filtros([receta_tomates], [filtro_tomate]) == [receta_tomates]
+
+    receta_melones = {"ingredientes": ["Melones de temporada"]}
+    filtro_melon = {"campo": "ingredientes", "operador": "contiene", "valor": "melón"}
+    assert aplicar_filtros([receta_melones], [filtro_melon]) == [receta_melones]
+
+
+def test_ingredientes_valor_de_varias_palabras():
+    """El valor buscado puede ser una frase de varias palabras y coincide como secuencia."""
+    receta = {"ingredientes": ["1 cda de aceite de oliva virgen"]}
+    filtro = {
+        "campo": "ingredientes",
+        "operador": "contiene",
+        "valor": "aceite de oliva",
+    }
+    assert aplicar_filtros([receta], [filtro]) == [receta]
 
 
 # -----------------------------------------------------------------------------

@@ -13,10 +13,12 @@ def render() -> None:
     """Renderiza la página Recetario."""
     st.title("🍳 Recetario")
 
+    hubo_error_carga = False
     try:
         recetas = comun.recetas_cacheadas()
     except Exception as error:
         recetas = []
+        hubo_error_carga = True
         st.error(f"No se pudieron cargar las recetas: {error}")
 
     categorias_opciones = _categorias_opciones(recetas)
@@ -24,6 +26,9 @@ def render() -> None:
     _seccion_nueva_receta(categorias_opciones)
 
     st.divider()
+
+    if hubo_error_carga:
+        return
 
     _seccion_buscador_listado(recetas, categorias_opciones)
 
@@ -54,6 +59,7 @@ def _seccion_nueva_receta(categorias_opciones: list[str]) -> None:
             try:
                 database.crear_receta(datos)
                 comun.limpiar_cache()
+                _limpiar_claves_formulario("nueva")
                 st.success("Receta creada correctamente.")
                 st.rerun()
             except Exception as error:
@@ -351,7 +357,7 @@ def _formulario_receta(
         categorias_opciones.index(categoria_actual) if categoria_actual in categorias_opciones else None
     )
 
-    with st.form(key=f"form_{prefix}", clear_on_submit=(not valores)):
+    with st.form(key=f"form_{prefix}", clear_on_submit=False):
         titulo = st.text_input(
             "Título *", value=valores.get("titulo", ""), key=f"{prefix}_titulo"
         )

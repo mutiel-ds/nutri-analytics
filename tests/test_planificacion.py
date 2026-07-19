@@ -248,3 +248,28 @@ def test_agrupar_lista_compra_items_ordenados_por_nombre_dentro_del_grupo():
 def test_agrupar_lista_compra_lista_vacia_devuelve_dict_vacio():
     """Una lista de items vacía devuelve un dict vacío."""
     assert agrupar_lista_compra([]) == {}
+
+
+def test_agrupar_lista_compra_normaliza_variantes_de_mayusculas_y_acentos():
+    """"Frutas", "frutas" y "FRUTAS" deben caer en un único grupo, nombrado con
+    la primera variante vista (por orden de aparición)."""
+    items = [
+        {"item": "Manzanas", "categoria": "Frutas"},
+        {"item": "Peras", "categoria": "frutas"},
+        {"item": "Plátanos", "categoria": "FRUTAS"},
+    ]
+    grupos = agrupar_lista_compra(items)
+    assert list(grupos.keys()) == ["Frutas"]
+    assert [i["item"] for i in grupos["Frutas"]] == ["Manzanas", "Peras", "Plátanos"]
+
+
+def test_agrupar_lista_compra_orden_alfabetico_por_clave_normalizada():
+    """El orden de los grupos usa la clave normalizada (sin acentos, minúsculas),
+    aunque el nombre mostrado conserve la variante original vista primero."""
+    items = [
+        {"item": "Pollo", "categoria": "carnes"},
+        {"item": "Manzanas", "categoria": "Frutas"},
+        {"item": "Leche", "categoria": "LÁCTEOS"},
+    ]
+    grupos = agrupar_lista_compra(items)
+    assert list(grupos.keys()) == ["carnes", "Frutas", "LÁCTEOS"]

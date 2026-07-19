@@ -47,11 +47,16 @@ def render() -> None:
 def _tab_salud() -> None:
     _form_registrar_metricas()
 
+    hubo_error_carga = False
     try:
         metricas = comun.historico_salud_cacheado()
     except Exception as error:
         metricas = []
+        hubo_error_carga = True
         st.error(f"No se pudo cargar el histórico de salud: {error}")
+
+    if hubo_error_carga:
+        return
 
     if not metricas:
         st.info(
@@ -75,7 +80,7 @@ def _tab_salud() -> None:
 
 def _form_registrar_metricas() -> None:
     with st.expander("➕ Registrar métricas"):
-        with st.form(key="metricas_form_salud", clear_on_submit=True):
+        with st.form(key="metricas_form_salud", clear_on_submit=False):
             fecha = st.date_input(
                 "Fecha", value=date.today(), key="metricas_salud_fecha"
             )
@@ -135,10 +140,24 @@ def _form_registrar_metricas() -> None:
                         notas=notas.strip() or None,
                     )
                     comun.limpiar_cache()
+                    _limpiar_claves_formulario_salud()
                     st.success("Métricas registradas correctamente.")
                     st.rerun()
                 except Exception as error:
                     st.error(f"No se pudieron registrar las métricas: {error}")
+
+
+def _limpiar_claves_formulario_salud() -> None:
+    """Elimina del session_state los valores de los widgets del formulario de alta de salud."""
+    for clave in (
+        "metricas_salud_fecha",
+        "metricas_salud_peso",
+        "metricas_salud_grasa",
+        "metricas_salud_cintura",
+        "metricas_salud_altura",
+        "metricas_salud_notas",
+    ):
+        st.session_state.pop(clave, None)
 
 
 def _formato_delta(delta: float | None) -> str | None:
@@ -250,14 +269,19 @@ def _fila_metrica(registro: dict) -> None:
 
 
 def _tab_deporte() -> None:
+    hubo_error_carga = False
     try:
         actividades = comun.historico_deporte_cacheado()
     except Exception as error:
         actividades = []
+        hubo_error_carga = True
         st.error(f"No se pudo cargar el histórico de deporte: {error}")
 
     opciones_tipo = _tipos_actividad_opciones(actividades)
     _form_registrar_actividad(opciones_tipo)
+
+    if hubo_error_carga:
+        return
 
     _grafico_minutos_semana(actividades)
 
@@ -278,7 +302,7 @@ def _tipos_actividad_opciones(actividades: list[dict]) -> list[str]:
 
 def _form_registrar_actividad(opciones_tipo: list[str]) -> None:
     with st.expander("➕ Registrar actividad"):
-        with st.form(key="metricas_form_deporte", clear_on_submit=True):
+        with st.form(key="metricas_form_deporte", clear_on_submit=False):
             tipo = st.selectbox(
                 "Tipo de actividad *",
                 options=opciones_tipo,
@@ -328,10 +352,24 @@ def _form_registrar_actividad(opciones_tipo: list[str]) -> None:
                         comentarios=comentarios.strip() or None,
                     )
                     comun.limpiar_cache()
+                    _limpiar_claves_formulario_deporte()
                     st.success("Actividad registrada correctamente.")
                     st.rerun()
                 except Exception as error:
                     st.error(f"No se pudo registrar la actividad: {error}")
+
+
+def _limpiar_claves_formulario_deporte() -> None:
+    """Elimina del session_state los valores de los widgets del formulario de alta de deporte."""
+    for clave in (
+        "metricas_deporte_tipo",
+        "metricas_deporte_duracion",
+        "metricas_deporte_fecha",
+        "metricas_deporte_intensidad",
+        "metricas_deporte_volumen",
+        "metricas_deporte_comentarios",
+    ):
+        st.session_state.pop(clave, None)
 
 
 def _grafico_minutos_semana(actividades: list[dict]) -> None:

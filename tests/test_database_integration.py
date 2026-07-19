@@ -260,8 +260,13 @@ def test_item_lista_compra_marcado_comprado_y_vaciado():
     finally:
         if not vaciado_ejecutado:
             database.eliminar_item(item_id)
-        for i in preexistentes_comprados:
-            restaurado = database.agregar_item(
-                i.get("item"), cantidad=i.get("cantidad"), categoria=i.get("categoria")
-            )
-            database.marcar_comprado(restaurado["id"], True)
+        else:
+            # Solo reinsertamos los preexistentes si vaciar_comprados() llegó a
+            # ejecutarse: si el test falló antes (p. ej. en el assert de
+            # "marcado" o en el de "pendientes"), esos items nunca se borraron
+            # de la BD real y reinsertarlos aquí los duplicaría.
+            for i in preexistentes_comprados:
+                restaurado = database.agregar_item(
+                    i.get("item"), cantidad=i.get("cantidad"), categoria=i.get("categoria")
+                )
+                database.marcar_comprado(restaurado["id"], True)
