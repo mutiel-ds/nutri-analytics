@@ -1,6 +1,6 @@
 [project]
 name = "nutri-analytics"
-version = "0.1.0"
+version = "1.0.0"
 description = "App personal de planificación de menús, recetas y seguimiento de salud/deporte con exportación de contexto para LLMs"
 readme = "README.md"
 # >=3.12 para compatibilidad con Streamlit Community Cloud; en local se usa

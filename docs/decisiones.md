@@ -76,5 +76,7 @@ La lógica de la app se expone a agentes de IA mediante un servidor MCP (*Model 
 Decisiones de alcance (V1):
 
 - **Local-first**: corre en la máquina del usuario con `uv run python mcp_server.py`; la Secret key de Supabase nunca sale del `.env` local. Un servidor MCP remoto (para claude.ai/móvil) queda como posible V2, con autenticación propia.
-- **Lectura + escritura, sin borrados**: se exponen 12 tools que permiten consultar y crear recetas con filtros, planificar comidas, gestionar la lista de la compra, registrar métricas de salud y actividades, e exportar contexto como texto. Las tools de borrado (`eliminar_receta`, `eliminar_comida`, `eliminar_item`, `vaciar_comprados`, `eliminar_actividad`) quedan fuera deliberadamente: el agente propone cambios, pero los borrados siguen siendo acción explícita del usuario desde la app.
+- **Lectura + escritura, sin borrados**: se exponen 13 tools que permiten consultar y crear recetas con filtros, planificar comidas, gestionar la lista de la compra, registrar métricas de salud y actividades, e exportar contexto como texto. Las tools de borrado (`eliminar_receta`, `eliminar_comida`, `eliminar_item`, `vaciar_comprados`, `eliminar_actividad`) quedan fuera deliberadamente: el agente propone cambios, pero los borrados siguen siendo acción explícita del usuario desde la app.
 - Los tests unitarios mockean el cliente de Supabase (norma D10), reutilizando el patrón de `tests/test_database.py` para no tocar red ni requerir credenciales.
+
+Ajuste post-estreno: se añadió la tool `fecha_actual` tras observar que un agente, sin contexto temporal, interpretaba mal expresiones como «la semana que viene» (los LLMs no conocen la fecha actual con fiabilidad).

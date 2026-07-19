@@ -8,6 +8,7 @@ Estos tests corren con el `uv run pytest` por defecto (no llevan el marker
 """
 
 import asyncio
+from datetime import date, timedelta
 
 import pytest
 
@@ -128,6 +129,77 @@ def test_crear_receta_valida_llama_insert_con_el_payload_completo(cliente_mock):
 
 
 # -----------------------------------------------------------------------------
+# fecha_actual / _contexto_fecha
+# -----------------------------------------------------------------------------
+
+
+def test_contexto_fecha_devuelve_las_claves_esperadas():
+    """_contexto_fecha devuelve exactamente las 6 claves documentadas."""
+    resultado = mcp_server._contexto_fecha(date(2026, 7, 19))
+
+    assert set(resultado.keys()) == {
+        "hoy",
+        "dia_semana",
+        "lunes_semana_actual",
+        "domingo_semana_actual",
+        "lunes_semana_siguiente",
+        "domingo_semana_siguiente",
+    }
+
+
+def test_contexto_fecha_domingo_coherente_con_semana_actual():
+    """Con 'hoy' = domingo 2026-07-19, la semana actual va del 13 al 19 de julio."""
+    resultado = mcp_server._contexto_fecha(date(2026, 7, 19))
+
+    assert resultado["hoy"] == "2026-07-19"
+    assert resultado["dia_semana"] == "Domingo"
+    assert resultado["lunes_semana_actual"] == "2026-07-13"
+    assert resultado["domingo_semana_actual"] == "2026-07-19"
+    assert resultado["lunes_semana_siguiente"] == "2026-07-20"
+    assert resultado["domingo_semana_siguiente"] == "2026-07-26"
+
+
+def test_contexto_fecha_miercoles_coherente_con_semana_actual():
+    """Con 'hoy' = miércoles 2026-07-15, la semana actual va del 13 al 19 de julio."""
+    resultado = mcp_server._contexto_fecha(date(2026, 7, 15))
+
+    assert resultado["dia_semana"] == "Miércoles"
+    assert resultado["lunes_semana_actual"] == "2026-07-13"
+    assert resultado["domingo_semana_actual"] == "2026-07-19"
+
+
+def test_contexto_fecha_lunes_siempre_esta_entre_lunes_y_domingo_actual():
+    """lunes_semana_actual <= hoy <= domingo_semana_actual, para cualquier día de la semana."""
+    for offset in range(7):
+        hoy = date(2026, 7, 13) + timedelta(days=offset)
+        resultado = mcp_server._contexto_fecha(hoy)
+
+        lunes = date.fromisoformat(resultado["lunes_semana_actual"])
+        domingo = date.fromisoformat(resultado["domingo_semana_actual"])
+        assert lunes <= hoy <= domingo
+
+
+def test_contexto_fecha_semana_siguiente_empieza_7_dias_despues():
+    """lunes_semana_siguiente es siempre lunes_semana_actual + 7 días."""
+    resultado = mcp_server._contexto_fecha(date(2026, 7, 16))
+
+    lunes_actual = date.fromisoformat(resultado["lunes_semana_actual"])
+    lunes_siguiente = date.fromisoformat(resultado["lunes_semana_siguiente"])
+    domingo_siguiente = date.fromisoformat(resultado["domingo_semana_siguiente"])
+
+    assert (lunes_siguiente - lunes_actual).days == 7
+    assert (domingo_siguiente - lunes_siguiente).days == 6
+
+
+def test_fecha_actual_usa_date_today_y_devuelve_las_mismas_claves():
+    """La tool pública fecha_actual delega en _contexto_fecha con date.today()."""
+    resultado = mcp_server.fecha_actual()
+    esperado = mcp_server._contexto_fecha(date.today())
+
+    assert resultado == esperado
+
+
+# -----------------------------------------------------------------------------
 # consultar_menu / planificar_comida
 # -----------------------------------------------------------------------------
 
@@ -218,11 +290,12 @@ def test_exportar_contexto_con_datos_minimos_contiene_las_secciones_esperadas(
 # -----------------------------------------------------------------------------
 
 
-def test_el_servidor_registra_las_12_tools_con_los_nombres_exactos():
-    """mcp_server.mcp expone exactamente las 12 tools con los nombres acordados."""
+def test_el_servidor_registra_las_13_tools_con_los_nombres_exactos():
+    """mcp_server.mcp expone exactamente las 13 tools con los nombres acordados."""
     nombres_esperados = {
         "listar_recetas",
         "crear_receta",
+        "fecha_actual",
         "consultar_menu",
         "planificar_comida",
         "consultar_lista_compra",
@@ -238,5 +311,5 @@ def test_el_servidor_registra_las_12_tools_con_los_nombres_exactos():
     tools = asyncio.run(mcp_server.mcp.list_tools())
     nombres = {tool.name for tool in tools}
 
-    assert len(tools) == 12
+    assert len(tools) == 13
     assert nombres == nombres_esperados

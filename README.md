@@ -135,10 +135,11 @@ La lógica de negocio de nutri-analytics se expone como un servidor [MCP](https:
 ### Características
 
 - **Local-first**: el servidor corre en tu máquina con `uv run python mcp_server.py`; tus credenciales de Supabase viven en `.env` y nunca salen de ahí.
-- **12 tools disponibles** para consultar, crear y actualizar:
+- **13 tools disponibles** para consultar, crear y actualizar:
 
 | Tool | Descripción |
 |------|-------------|
+| `fecha_actual` | Fecha de hoy y límites de la semana actual/siguiente (para resolver fechas relativas como "la semana que viene") |
 | `listar_recetas` | Consultar el catálogo de recetas con filtros opcionales (macros, ingredientes, etc.) |
 | `crear_receta` | Crear una nueva receta con macros y ingredientes |
 | `consultar_menu` | Ver el menú semanal de un rango de fechas |

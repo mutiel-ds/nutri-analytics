@@ -40,6 +40,8 @@ Cómo registrar este servidor en un cliente MCP (ejemplo de configuración):
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from mcp.server.fastmcp import FastMCP
 
 import database
@@ -47,6 +49,20 @@ import exporter
 from filtros import aplicar_filtros
 
 mcp = FastMCP("nutri-analytics")
+
+# Nombres de los días de la semana en español (weekday(): 0 = Lunes). Se
+# duplica aquí (en vez de importarse de `planificacion.py`, que la define
+# como constante privada `_DIAS_SEMANA_ES`) para no depender de un símbolo
+# privado de otro módulo.
+_DIAS_SEMANA_ES: tuple[str, ...] = (
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
+    "Domingo",
+)
 
 
 # -----------------------------------------------------------------------------
@@ -148,6 +164,68 @@ def crear_receta(
 
 
 # -----------------------------------------------------------------------------
+# Contexto temporal
+# -----------------------------------------------------------------------------
+
+
+def _contexto_fecha(hoy: date) -> dict:
+    """Calcula el contexto temporal (día de la semana y límites de semana) a partir de `hoy`.
+
+    Función auxiliar privada (no se registra como tool): separa el cálculo
+    puro de `fecha_actual` para que los tests puedan ser deterministas
+    inyectando una fecha fija en lugar de depender de `date.today()`. Las
+    semanas van de lunes (weekday() == 0) a domingo.
+
+    Args:
+        hoy: fecha considerada "hoy".
+
+    Returns:
+        Dict con las claves "hoy", "dia_semana", "lunes_semana_actual",
+        "domingo_semana_actual", "lunes_semana_siguiente" y
+        "domingo_semana_siguiente" (ver `fecha_actual`).
+    """
+    lunes_semana_actual = hoy - timedelta(days=hoy.weekday())
+    domingo_semana_actual = lunes_semana_actual + timedelta(days=6)
+    lunes_semana_siguiente = lunes_semana_actual + timedelta(days=7)
+    domingo_semana_siguiente = lunes_semana_siguiente + timedelta(days=6)
+    return {
+        "hoy": hoy.isoformat(),
+        "dia_semana": _DIAS_SEMANA_ES[hoy.weekday()],
+        "lunes_semana_actual": lunes_semana_actual.isoformat(),
+        "domingo_semana_actual": domingo_semana_actual.isoformat(),
+        "lunes_semana_siguiente": lunes_semana_siguiente.isoformat(),
+        "domingo_semana_siguiente": domingo_semana_siguiente.isoformat(),
+    }
+
+
+def fecha_actual() -> dict:
+    """Consulta esta tool ANTES de planificar comidas o interpretar expresiones
+    relativas como "hoy", "mañana" o "la semana que viene": te da la fecha
+    actual y los límites de la semana actual y la siguiente (las semanas van
+    de lunes a domingo).
+
+    Sin esta tool no hay forma de saber qué día es "hoy" ni de resolver
+    expresiones relativas de fecha, lo que puede llevar a planificar
+    comidas en la fecha equivocada.
+
+    Returns:
+        Dict con las claves:
+            - "hoy": fecha actual, formato "YYYY-MM-DD".
+            - "dia_semana": nombre del día actual en español (p. ej.
+              "Domingo").
+            - "lunes_semana_actual": fecha del lunes de la semana en curso,
+              formato "YYYY-MM-DD".
+            - "domingo_semana_actual": fecha del domingo de la semana en
+              curso, formato "YYYY-MM-DD".
+            - "lunes_semana_siguiente": fecha del lunes de la semana
+              siguiente, formato "YYYY-MM-DD".
+            - "domingo_semana_siguiente": fecha del domingo de la semana
+              siguiente, formato "YYYY-MM-DD".
+    """
+    return _contexto_fecha(date.today())
+
+
+# -----------------------------------------------------------------------------
 # Menús
 # -----------------------------------------------------------------------------
 
@@ -158,6 +236,10 @@ def consultar_menu(fecha_desde: str, fecha_hasta: str) -> list[dict]:
     Cada comida incluye la receta asociada embebida bajo la clave "recetas"
     (o null si la comida no tiene receta asignada, p. ej. si solo lleva
     `nota_adicional`).
+
+    Si `fecha_desde`/`fecha_hasta` se derivan de una expresión relativa
+    (p. ej. "esta semana" o "la semana que viene"), usa antes la tool
+    `fecha_actual` para resolverlas correctamente.
 
     Args:
         fecha_desde: fecha inicial del rango, formato "YYYY-MM-DD".
@@ -181,6 +263,10 @@ def planificar_comida(
     comida ya tenían una comida planificada, **reasignar la sobrescribe**
     por completo (incluida la nota_adicional, que si no se pasa queda a
     null).
+
+    Si `fecha` se deriva de una expresión relativa (p. ej. "mañana" o "el
+    lunes que viene"), usa antes la tool `fecha_actual` para resolverla
+    correctamente.
 
     Args:
         fecha: fecha de la comida, formato "YYYY-MM-DD".
@@ -435,6 +521,7 @@ def exportar_contexto(fecha_desde: str, fecha_hasta: str) -> str:
 
 mcp.tool()(listar_recetas)
 mcp.tool()(crear_receta)
+mcp.tool()(fecha_actual)
 mcp.tool()(consultar_menu)
 mcp.tool()(planificar_comida)
 mcp.tool()(consultar_lista_compra)
